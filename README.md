@@ -30,7 +30,34 @@ NotebookLM Clone is a document-grounded AI assistant that allows you to:
 
 ## Architecture
 
+### System Architecture
 
+```
+User
+    │
+    ▼
+Streamlit Web UI
+    │
+    ▼
+Document Processor ──► Embedding Generator ──► ChromaDB Vector Database
+    │                                         ▲
+    ▼                                         │
+Audio/YouTube/Web Scraper                   │
+    │                                         │
+    ▼                                         │
+Podcast Script Generator ──► TTS Generator  │
+    │                                         │
+    ▼                                         │
+Outputs (Podcast, Answers, Citations)       │
+                                                                                        │
+                                RAG Generator ◄─────────────┘
+```
+
+---
+
+**Project Author:** Rashedul Albab
+
+---
 
 ## Data Flow
 1. Document Ingestion: User uploads PDF, audio, video, text, or web URL
