@@ -30,7 +30,7 @@ NotebookLM Clone is a document-grounded AI assistant that allows you to:
 
 ## Architecture
 
-![architecture-diagram](assets/flow-diagram.jpg)
+
 
 ## Data Flow
 1. Document Ingestion: User uploads PDF, audio, video, text, or web URL
@@ -120,14 +120,15 @@ The app will open at http://localhost:8501
 │   │   └── 🤖 rag.py
 │   │
 │   ├── 📂 memory/                     # Conversation memory management
-│   │   └── 🧠 memory_layer.py         # Zep memory integration
+│   │   └── 🧠 memory_layer.py         # (currently disabled)
 │   │
 │   ├── 📂 podcast/                    # Podcast generation system
 │   │   ├── 📝 script_generator.py     # Podcast script generation
 │   │   └── 🎙️ text_to_speech.py       # TTS audio generation
 │   │
 │   ├── 📂 vector_database/            # Vector storage and search
-│   │   └── 🗄️ milvus_vector_db.py
+│   │   ├── 🗄️ chroma_vector_db.py
+│   │   └── 🗄️ milvus_vector_db.py (legacy)
 │   │
 │   └── 📂 web_scraping/               # Web content extraction
 │       └── 🌐 web_scraper.py          # FireCrawl web scraping
@@ -140,7 +141,7 @@ The app will open at http://localhost:8501
 │
 ├── 📱 app.py                          # Main Streamlit application
 ├── 📋 pyproject.toml                  # Project configuration and dependencies
-├── 📋 uv.lock                         # UV lock file
+    # Removed uv.lock (not used)
 ├── 🐍 .python-version                 # Python version specification
 ├── 📝 .env.example                    # Example configuration file
 ├── 📝 README.md                       # Project documentation
@@ -149,18 +150,8 @@ The app will open at http://localhost:8501
 ## Key Features
 
 - **Citation-First Approach**: Every claim is backed by specific sources with page numbers and references as in the original NotebookLM.
-- **Memory-Powered**: Uses temporal knowledge graphs to remember context and preferences during conversations.
-- **Multi-Format Support**: Process PDFs, text files, audio recordings, YouTube videos and web content seamlessly.
+- **Conversational Context**: Maintains chat history and document context across sessions.
+- **Multi-Format Support**: Process PDFs, text files, audio recordings, YouTube videos, and web content seamlessly.
 - **Efficient Retrieval**: All relevant chunks retrieved intelligently along with citation metadata.
 - **AI Podcast Generation**: Transform documents into engaging multi-speaker podcast conversations.
 
-## 📬 Stay Updated with Our Newsletter!
-**Get a FREE Data Science eBook** 📖 with 150+ essential lessons in Data Science when you subscribe to our newsletter! Stay in the loop with the latest tutorials, insights, and exclusive resources. [Subscribe now!](https://join.dailydoseofds.com)
-
-[![Daily Dose of Data Science Newsletter](https://github.com/patchy631/ai-engineering/blob/main/resources/join_ddods.png)](https://join.dailydoseofds.com)
-
----
-
-## Contribution
-
-Contributions are welcome! Please fork the repository and submit a pull request with your improvements. 
