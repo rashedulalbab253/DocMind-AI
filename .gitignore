@@ -1,0 +1,65 @@
+# Virtual Environments
+.venv
+.venv_312
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Data and outputs
+chroma_data/
+chroma_data*/
+data/
+outputs/
+temp_repo/
+*.db
+*.sqlite
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Streamlit
+.streamlit/
+.streamlit_cache/
+.streamlit_cache2/
+
+# Test coverage
+.coverage
+htmlcov/
+
+# Miscellaneous
+*.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
