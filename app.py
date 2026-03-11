@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 def create_interactive_citations(response_text: str, sources_used: List[Dict[str, Any]]) -> str:
     import re
     
+    if not response_text:
+        return ""
+    
     logger.info(f"Processing interactive citations for {len(sources_used)} sources")
 
     citation_map = {}
@@ -111,165 +114,227 @@ st.set_page_config(
 )
 
 st.markdown("""
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
 <style>
+    /* Modern Global Styles */
+    html, body, [data-testid="stAppViewContainer"] {
+        font-family: 'Outfit', sans-serif;
+        background-color: #0f172a;
+        color: #e2e8f0;
+    }
+
     .main-header {
-        font-size: 24px;
-        font-weight: 600;
-        color: #ffffff;
-        margin-bottom: 20px;
+        font-size: 2rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #60a5fa 0%, #a855f7 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1.5rem;
+        letter-spacing: -0.02em;
     }
     
+    /* Premium Sidebar */
+    [data-testid="stSidebar"] {
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(10px);
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Glassmorphism Cards */
     .source-item {
-        background: #2d3748;
-        border-radius: 8px;
-        padding: 12px;
-        margin: 8px 0;
-        border-left: 3px solid #4299e1;
+        background: rgba(30, 41, 59, 0.5);
+        backdrop-filter: blur(8px);
+        border-radius: 12px;
+        padding: 1rem;
+        margin: 0.75rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+    }
+    
+    .source-item:hover {
+        transform: translateY(-2px);
+        background: rgba(51, 65, 85, 0.6);
+        border-color: rgba(96, 165, 250, 0.3);
+        box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.5);
     }
     
     .source-title {
         font-weight: 600;
-        color: #ffffff;
-        margin-bottom: 4px;
+        color: #f8fafc;
+        margin-bottom: 0.25rem;
+        font-size: 0.95rem;
     }
     
     .source-meta {
-        font-size: 12px;
-        color: #a0aec0;
+        font-size: 0.8rem;
+        color: #94a3b8;
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
     }
     
+    /* Professional Chat Interface */
+    .chat-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
     .chat-message {
-        background: #2d3748;
-        border-radius: 12px;
-        padding: 16px;
-        margin: 12px 0;
+        border-radius: 16px;
+        padding: 1.25rem;
+        margin: 1.5rem 0;
+        line-height: 1.6;
+        font-size: 1rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        animation: fadeIn 0.4s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     
     .user-message {
-        background: #4299e1;
-        margin-left: 20%;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        margin-left: 3rem;
+        border-bottom-right-radius: 4px;
     }
     
     .assistant-message {
-        background: #2d3748;
-        margin-right: 20%;
-        border-left: 3px solid #48bb78;
+        background: rgba(30, 41, 59, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        margin-right: 3rem;
+        border-bottom-left-radius: 4px;
+        position: relative;
     }
-    
-    .citation {
-        background: #1a202c;
-        border-radius: 4px;
-        padding: 4px 8px;
-        font-size: 11px;
-        color: #90cdf4;
-        margin: 2px;
-        display: inline-block;
-    }
-    
-    /* Interactive citation styling */
-    .citation-number {
-        background: #4299e1;
+
+    .assistant-message::before {
+        content: 'AI';
+        position: absolute;
+        top: -10px;
+        left: 20px;
+        background: #f43f5e;
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 20px;
         color: white;
-        padding: 2px 6px;
+    }
+    
+    /* Interactive Citation System */
+    .citation-number {
+        background: rgba(96, 165, 250, 0.1);
+        border: 1px solid rgba(96, 165, 250, 0.2);
+        color: #60a5fa;
+        padding: 1px 6px;
         border-radius: 4px;
-        font-size: 11px;
-        font-weight: bold;
+        font-size: 0.75rem;
+        font-weight: 700;
         cursor: pointer;
         display: inline-block;
         margin: 0 2px;
-        position: relative;
-        transition: all 0.2s ease;
+        transition: all 0.2s;
     }
     
     .citation-number:hover {
-        background: #3182ce;
+        background: #60a5fa;
+        color: #0f172a;
         transform: scale(1.1);
     }
     
-    /* Tooltip styling */
+    /* Modern Tooltips */
     .citation-tooltip {
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #2d3748;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
         color: #e2e8f0;
-        padding: 12px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        border: 1px solid #4a5568;
-        max-width: 400px;
-        width: max-content;
-        z-index: 1000;
-        font-size: 12px;
-        line-height: 1.4;
-        margin-bottom: 8px;
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.3s ease, visibility 0.3s ease;
-        pointer-events: none;
+        z-index: 100;
+        animation: zoomIn 0.2s ease-out;
+    }
+
+    @keyframes zoomIn {
+        from { opacity: 0; transform: translate(-50%, 5px) scale(0.95); }
+        to { opacity: 1; transform: translate(-50%, 0) scale(1); }
     }
     
-    .citation-number:hover .citation-tooltip {
-        opacity: 1;
-        visibility: visible;
-    }
-    
-    /* Tooltip arrow */
-    .citation-tooltip::after {
-        content: '';
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        border: 6px solid transparent;
-        border-top-color: #2d3748;
-    }
-    
-    .tooltip-source {
-        font-weight: bold;
-        color: #4299e1;
-        margin-bottom: 6px;
-        font-size: 11px;
-    }
-    
-    .tooltip-content {
-        max-height: 200px;
-        overflow-y: auto;
-        text-align: left;
-    }
-    
+    /* Upload Experience */
     .upload-area {
-        border: 2px dashed #4a5568;
-        border-radius: 12px;
-        padding: 40px;
-        text-align: center;
-        background: #1a202c;
-        margin: 20px 0;
+        background: rgba(30, 41, 59, 0.4);
+        border: 2px dashed rgba(71, 85, 105, 0.5);
+        border-radius: 20px;
+        padding: 3rem;
+        transition: all 0.3s;
+    }
+
+    .upload-area:hover {
+        border-color: #60a5fa;
+        background: rgba(30, 41, 59, 0.6);
     }
     
-    .upload-text {
-        color: #a0aec0;
-        font-size: 16px;
-        margin-bottom: 20px;
-    }
-    
+    /* Stunning Buttons */
     .stButton > button {
-        background: #4299e1;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
         color: white;
-        border-radius: 6px;
+        border-radius: 10px;
         border: none;
-        padding: 8px 24px;
-        font-weight: 500;
+        padding: 0.6rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.8rem;
     }
     
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
+        border: none;
+        color: white;
+    }
+
+    /* Tabs & Navigation */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 1rem;
+        background-color: transparent;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        height: 40px;
+        border-radius: 8px;
+        padding: 0 1rem;
+        background-color: rgba(30, 41, 59, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        color: #94a3b8;
+        transition: all 0.3s;
+    }
+
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #e2e8f0;
+        background-color: rgba(51, 65, 85, 0.8);
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: #3b82f6 !important;
+        color: white !important;
+    }
+
+    /* Utility */
     .source-count {
-        background: #4a5568;
-        color: #ffffff;
-        border-radius: 12px;
+        background: #334155;
+        color: #60a5fa;
         padding: 4px 12px;
-        font-size: 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
         font-weight: 600;
+        display: inline-block;
+        margin-bottom: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -319,15 +384,40 @@ def reset_chat():
     except Exception as e:
         st.error(f"❌ Error resetting chat: {str(e)}")
 
-def initialize_pipeline():
-    if st.session_state.pipeline_initialized:
-        return True
+def initialize_pipeline(force: bool = False):
+    # Reload environment variables to catch changes in .env
+    load_dotenv(override=True)
+    
+    if st.session_state.pipeline_initialized and not force:
+        # Check if model or key changed
+        openai_key = os.getenv("OPENAI_API_KEY")
+        groq_key = os.getenv("GROQ_API_KEY")
+        current_key = groq_key if groq_key else openai_key
+        
+        pipeline = st.session_state.pipeline
+        stored_model = pipeline.get('llm_model')
+        stored_key = pipeline.get('groq_key') if groq_key else pipeline.get('openai_key')
+        
+        target_model = "groq/llama-3.3-70b-versatile" if groq_key else "gpt-4o-mini"
+        
+        if stored_key == current_key and stored_model == target_model:
+            return True
+        logger.info("Keys or model changed, forcing pipeline re-initialization")
     
     try:
         openai_key = os.getenv("OPENAI_API_KEY")
+        groq_key = os.getenv("GROQ_API_KEY")
         assemblyai_key = os.getenv("ASSEMBLYAI_API_KEY")
         firecrawl_key = os.getenv("FIRECRAWL_API_KEY")
         zep_key = os.getenv("ZEP_API_KEY")
+        
+        # Select LLM Provider
+        llm_api_key = groq_key if groq_key else openai_key
+        llm_model = "groq/llama-3.3-70b-versatile" if groq_key else "gpt-4o-mini"
+        
+        if not llm_api_key:
+            st.error("❌ No LLM API Key found (OpenAI or Groq). Please set them in your .env file.")
+            return False
         
         col1, col2 = st.columns([3, 1])
         with col1:
@@ -348,11 +438,12 @@ def initialize_pipeline():
             collection_name=f"collection_{st.session_state.session_id[:8]}"
         )
         
-        progress_placeholder.info("🔄 Initializing RAG generator...")
+        progress_placeholder.info(f"🔄 Initializing RAG generator ({llm_model})...")
         rag_generator = RAGGenerator(
             embedding_generator=embedding_generator,
             vector_db=vector_db,
-            openai_api_key=openai_key
+            api_key=llm_api_key,
+            model_name=llm_model
         )
         
         # Initialize optional components lazily (None initially)
@@ -377,7 +468,9 @@ def initialize_pipeline():
             'assemblyai_key': assemblyai_key,
             'firecrawl_key': firecrawl_key,
             'openai_key': openai_key,
-            'zep_key': zep_key
+            'zep_key': zep_key,
+            'groq_key': groq_key,
+            'llm_model': llm_model
         }
         
         progress_placeholder.success("✅ Pipeline initialized successfully!")
@@ -575,8 +668,37 @@ def render_sources_sidebar():
     with st.sidebar:
         st.markdown('<div class="main-header">📚 Sources</div>', unsafe_allow_html=True)
         
-        # if st.button("➕ Add", use_container_width=True):
-        #     st.session_state.show_source_dialog = True
+        # Pipeline status
+        if st.session_state.pipeline_initialized:
+            pipeline = st.session_state.pipeline
+            model = pipeline.get('llm_model', 'Unknown')
+            provider = "Groq" if "groq" in model.lower() else "OpenAI"
+            
+            # Get DB stats
+            v_db = pipeline.get('vector_db')
+            db_count = 0
+            if v_db:
+                try:
+                    # Accessing collection safely
+                    if hasattr(v_db, 'collection') and v_db.collection is not None:
+                        db_count = v_db.collection.count()
+                    else:
+                        db_count = 0
+                except:
+                    db_count = "Error"
+            
+            st.info(f"🤖 **Model:** {provider}\n\n`{model}`\n\n📊 **DB Chunks:** {db_count}")
+            
+            if st.button("🔄 Re-initialize Pipeline", help="Force reload settings and API keys"):
+                st.session_state.pipeline_initialized = False
+                st.rerun()
+        
+        if st.button("🧹 Hard Reset Session", help="Clear ALL data and restart"):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
+            
+        st.markdown("---")
         
         # Display sources
         if st.session_state.sources:
@@ -682,7 +804,10 @@ def render_chat_interface():
                 </div>
                 ''', unsafe_allow_html=True)
             else:
-                content_to_display = message.get('interactive_content', message['content'])
+                # Fix: Handle None value in interactive_content correctly
+                content_to_display = message.get('interactive_content')
+                if not content_to_display:
+                    content_to_display = message['content']
                 
                 st.markdown(f'''
                 <div class="chat-message assistant-message">
@@ -749,11 +874,20 @@ def render_chat_interface():
                     st.error(f"Error generating response: {str(e)}")
 
 def generate_podcast(selected_source: str, podcast_style: str, podcast_length: str):
-    if not st.session_state.pipeline or not st.session_state.pipeline['podcast_script_generator']:
-        st.error("Podcast generation not available. Please check your OpenAI API key.")
+    if not st.session_state.pipeline:
         return
-    
+        
     pipeline = st.session_state.pipeline
+    llm_api_key = pipeline.get('groq_key') or pipeline.get('openai_key')
+    llm_model = pipeline.get('llm_model', 'gpt-4o-mini')
+    
+    if not pipeline.get('podcast_script_generator'):
+        logger.info(f"Initializing podcast script generator with {llm_model}")
+        podcast_script_generator = PodcastScriptGenerator(
+            api_key=llm_api_key,
+            model_name=llm_model
+        )
+        pipeline['podcast_script_generator'] = podcast_script_generator
     
     try:
         source_info = None
@@ -880,11 +1014,19 @@ def generate_podcast(selected_source: str, podcast_style: str, podcast_length: s
             for i, line_dict in enumerate(podcast_script.script, 1):
                 speaker, dialogue = next(iter(line_dict.items()))
                 
-                # Color code speakers
+                # Color code speakers with premium styling
                 if speaker == "Speaker 1":
-                    st.markdown(f'<div style="background: #1e3a8a; padding: 10px; border-radius: 5px; margin: 5px 0;"><strong>👩 {speaker}:</strong> {dialogue}</div>', unsafe_allow_html=True)
+                    st.markdown(f'''
+                    <div class="chat-message user-message" style="margin: 0.5rem 0; padding: 1rem; background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); border-bottom-right-radius: 16px;">
+                        <strong>👩 {speaker}:</strong> {dialogue}
+                    </div>
+                    ''', unsafe_allow_html=True)
                 else:
-                    st.markdown(f'<div style="background: #166534; padding: 10px; border-radius: 5px; margin: 5px 0;"><strong>👨 {speaker}:</strong> {dialogue}</div>', unsafe_allow_html=True)
+                    st.markdown(f'''
+                    <div class="chat-message assistant-message" style="margin: 0.5rem 0; padding: 1rem; background: rgba(22, 101, 52, 0.4); border-bottom-left-radius: 16px; border: 1px solid rgba(74, 222, 128, 0.2);">
+                        <strong>👨 {speaker}:</strong> {dialogue}
+                    </div>
+                    ''', unsafe_allow_html=True)
         
         script_json = podcast_script.to_json()
         st.download_button(
@@ -942,8 +1084,8 @@ def main():
     init_session_state()
     
     st.markdown("""
-    <div style="display: flex; align-items: center; margin-bottom: 30px;">
-        <h1 style="color: #ffffff; margin: 0;">🧠 NotebookLM: Understand Anything</h1>
+    <div style="display: flex; align-items: center; margin-bottom: 2rem;">
+        <h1 class="main-header" style="margin: 0;">🧠 NotebookLM: Understand Anything</h1>
     </div>
     """, unsafe_allow_html=True)
     

@@ -33,11 +33,17 @@ class PodcastScript:
 
 
 class PodcastScriptGenerator:
-    def __init__(self, openai_api_key: str, model_name: str = "gpt-4o-mini"):
+    def __init__(self, api_key: str, model_name: str = "gpt-4o-mini"):
+        # Determine provider from model_name
+        full_model_name = model_name
+        if "/" not in model_name:
+            full_model_name = f"openai/{model_name}"
+            
         self.llm = LLM(
-            model=f"openai/{model_name}",
+            model=full_model_name,
             temperature=0.7,
-            max_tokens=4000
+            max_tokens=4000,
+            api_key=api_key
         )
         self.doc_processor = DocumentProcessor()
         logger.info(f"Podcast script generator initialized with {model_name}")

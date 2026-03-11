@@ -38,7 +38,7 @@ class RAGGenerator:
         self,
         embedding_generator: EmbeddingGenerator,
         vector_db: MilvusVectorDB,
-        openai_api_key: str,
+        api_key: str,
         model_name: str = "gpt-4o-mini",
         temperature: float = 0.1,
         max_tokens: int = 2000
@@ -46,11 +46,16 @@ class RAGGenerator:
         self.embedding_generator = embedding_generator
         self.vector_db = vector_db
         
+        # Determine provider from model_name
+        full_model_name = model_name
+        if "/" not in model_name:
+            full_model_name = f"openai/{model_name}"
+            
         self.llm = LLM(
-            model=f"openai/{model_name}",
+            model=full_model_name,
             temperature=temperature,
             max_tokens=max_tokens,
-            api_key=openai_api_key
+            api_key=api_key
         )
         
         self.model_name = model_name
@@ -99,7 +104,37 @@ class RAGGenerator:
             prompt = self._create_rag_prompt(query, context)
             
             # Step 4: Generate response
-            response = self.llm.call(prompt)
+            logger.info(f"Sending prompt to LLM (length: {len(prompt)})")
+            raw_response = self.llm.call(prompt)
+            logger.info(f"Raw response type: {type(raw_response)}")
+            logger.info(f"Raw response value: {raw_response}")
+            
+            # Ensure response is a string - handle different return types from crewai/litellm
+            response = ""
+            if isinstance(raw_response, str):
+                response = raw_response
+            elif hasattr(raw_response, 'content') and raw_response.content:
+                response = raw_response.content
+            elif hasattr(raw_response, 'choices') and raw_response.choices:
+                # Handle OpenAI-style response object
+                choice = raw_response.choices[0]
+                if hasattr(choice, 'message') and hasattr(choice.message, 'content'):
+                    response = choice.message.content
+                elif hasattr(choice, 'text'):
+                    response = choice.text
+            elif isinstance(raw_response, dict):
+                # Handle dictionary response
+                if 'content' in raw_response:
+                    response = raw_response['content']
+                elif 'choices' in raw_response and raw_response['choices']:
+                    choice = raw_response['choices'][0]
+                    if 'message' in choice and 'content' in choice['message']:
+                        response = choice['message']['content']
+                    elif 'text' in choice:
+                        response = choice['text']
+            
+            if not response:
+                response = str(raw_response) if raw_response is not None else "I couldn't generate a response."
             
             # Step 5: Create result object
             rag_result = RAGResult(
@@ -113,10 +148,19 @@ class RAGGenerator:
             return rag_result
             
         except Exception as e:
-            logger.error(f"Error generating response: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"Error generating response: {error_msg}")
+            
+            # Provide more helpful error messages for common LLM issues
+            display_error = f"I encountered an error: {error_msg}"
+            if "quota" in error_msg.lower() or "billing" in error_msg.lower():
+                display_error = "OpenAI API Quota Exceeded: Please check your OpenAI billing details and usage limits. Your current API key has no remaining quota."
+            elif "rate limit" in error_msg.lower():
+                display_error = "OpenAI Rate Limit Reached: Please wait a moment before asking another question."
+            
             return RAGResult(
                 query=query,
-                response=f"I encountered an error while processing your question: {str(e)}",
+                response=display_error,
                 sources_used=[],
                 retrieval_count=0
             )

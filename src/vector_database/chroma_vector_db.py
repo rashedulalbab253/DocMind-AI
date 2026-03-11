@@ -47,22 +47,38 @@ class ChromaVectorDB:
             logger.error(f"Failed to setup collection: {str(e)}")
             raise
     
-    def insert(self, chunks: List[EmbeddedChunk]) -> bool:
+    def create_index(self, use_binary_quantization: bool = False, **kwargs):
+        """Create index - no-op for ChromaDB as it handles indexing automatically.
+        
+        This method exists for API compatibility with MilvusVectorDB.
+        """
+        logger.info("ChromaDB handles indexing automatically - no explicit index creation needed")
+        return True
+
+    def insert_embeddings(self, chunks: List[EmbeddedChunk]) -> List[str]:
+        """Insert embedded chunks (alias for insert, for API compatibility with MilvusVectorDB)"""
+        return self.insert(chunks)
+
+    def insert(self, chunks: List[EmbeddedChunk]) -> List[str]:
         """Insert embedded chunks into the vector database"""
         try:
             if not chunks:
                 logger.warning("No chunks to insert")
-                return False
+                return []
             
             ids = []
             embeddings = []
             documents = []
             metadatas = []
             
-            for chunk in chunks:
+            for embedded_chunk in chunks:
+                chunk = embedded_chunk.chunk
                 chunk_id = f"{chunk.source_file}_{chunk.chunk_index}"
                 ids.append(chunk_id)
-                embeddings.append(chunk.embedding)
+                
+                # Ensure embedding is a list
+                emb_list = embedded_chunk.embedding.tolist() if hasattr(embedded_chunk.embedding, 'tolist') else embedded_chunk.embedding
+                embeddings.append(emb_list)
                 documents.append(chunk.content)
                 
                 # Store chunk metadata
@@ -85,48 +101,139 @@ class ChromaVectorDB:
                 }
             
             # Add to collection
-            self.collection.add(
-                ids=ids,
-                embeddings=embeddings,
-                documents=documents,
-                metadatas=metadatas
-            )
-            
-            logger.info(f"Successfully inserted {len(chunks)} chunks")
-            return True
+            logger.info(f"Adding {len(ids)} items to ChromaDB collection...")
+            coll = self.collection
+            if coll is not None:
+                coll.add(
+                    ids=ids,
+                    embeddings=embeddings,
+                    documents=documents,
+                    metadatas=metadatas
+                )
+                count = coll.count()
+                logger.info(f"Successfully inserted {len(chunks)} chunks. Collection count: {count}")
+            else:
+                logger.error("Cannot insert: Collection not initialized")
+            return ids
             
         except Exception as e:
             logger.error(f"Error inserting chunks: {str(e)}")
-            return False
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
     
-    def search(self, query_embedding: List[float], top_k: int = 5) -> List[Dict[str, Any]]:
-        """Search for similar chunks using vector similarity"""
+    def search(self, query_embedding=None, top_k: int = 5, query_vector=None, 
+               limit: Optional[int] = None, filter_expr: Optional[str] = None, **kwargs) -> List[Dict[str, Any]]:
+        """Search for similar chunks using vector similarity.
+        
+        Accepts both ChromaVectorDB-style params (query_embedding, top_k) and 
+        MilvusVectorDB-style params (query_vector, limit) for API compatibility.
+        """
         try:
-            results = self.collection.query(
-                query_embeddings=[query_embedding],
-                n_results=top_k
-            )
+            # Support both param styles
+            embedding = query_vector if query_vector is not None else query_embedding
+            if embedding is None:
+                logger.error("No query embedding provided")
+                return []
+            n_results = limit if limit is not None else top_k
             
-            if not results or not results.get('ids') or len(results['ids']) == 0:
+            # Build ChromaDB where filter from filter_expr if provided
+            where_filter = None
+            if filter_expr:
+                # Parse simple filter expressions like: field == "value"
+                try:
+                    import re
+                    match = re.match(r'(\w+)\s*==\s*"([^"]*)"', filter_expr)
+                    if match:
+                        field, value = match.groups()
+                        where_filter = {field: {"$eq": value}}
+                except Exception as e:
+                    logger.warning(f"Could not parse filter expression '{filter_expr}': {e}")
+            
+            query_kwargs: Dict[str, Any] = {
+                "query_embeddings": [embedding],
+                "n_results": n_results,
+                "include": ["documents", "metadatas", "distances"]
+            }
+            if where_filter:
+                query_kwargs["where"] = where_filter
+            coll = self.collection
+            if coll is None:
+                logger.error("Search failed: Collection not initialized")
+                return []
+                
+            results = coll.query(**query_kwargs)
+            
+            if not results or not results.get('ids') or not results['ids'] or len(results['ids'][0]) == 0:
+                count = coll.count()
+                logger.warning(f"No results found for query. Total items in collection: {count}")
                 return []
             
+            logger.info(f"Query returned {len(results['ids'][0])} results. Top score: {results.get('distances', [[]])[0][0] if results.get('distances') else 'N/A'}")
+            
             chunk_ids = results['ids'][0]
-            distances = results.get('distances', [[]] * len(chunk_ids))[0]
+            distances = results.get('distances', [[]])[0]
+            documents = results.get('documents', [[]])[0]
+            metadatas = results.get('metadatas', [[]])[0]
             
             search_results = []
-            for chunk_id, distance in zip(chunk_ids, distances):
-                chunk_data = self.chunks_store.get(chunk_id)
-                if chunk_data:
-                    similarity = 1 - (distance / 2)  # Convert distance to similarity
-                    search_results.append({
-                        "chunk_id": chunk_id,
-                        "content": chunk_data["content"],
-                        "source_file": chunk_data["source_file"],
-                        "source_type": chunk_data["source_type"],
-                        "page_number": chunk_data["page_number"],
-                        "chunk_index": chunk_data["chunk_index"],
-                        "similarity": similarity
-                    })
+            for i in range(len(chunk_ids)):
+                chunk_id = chunk_ids[i]
+                distance = distances[i] if i < len(distances) else 0
+                content = documents[i] if i < len(documents) else ""
+                meta = metadatas[i] if i < len(metadatas) else {}
+                
+                similarity = 1 - (distance / 2)  # Convert distance to similarity
+                
+                # Metadata string values might need conversion to int
+                p_val = meta.get("page_number")
+                p_num = None
+                if p_val is not None:
+                    try:
+                        p_num = int(p_val)  # type: ignore
+                    except (ValueError, TypeError):
+                        p_num = None
+                    
+                c_val = meta.get("chunk_index")
+                c_idx = 0
+                if c_val is not None:
+                    try:
+                        c_idx = int(c_val)  # type: ignore
+                    except (ValueError, TypeError):
+                        c_idx = 0
+
+                # Return in MilvusVectorDB-compatible format for rag.py
+                search_result = {
+                    "id": chunk_id,
+                    "chunk_id": chunk_id,
+                    "score": similarity,
+                    "similarity": similarity,
+                    "content": content,
+                    "source_file": meta.get("source_file"),
+                    "source_type": meta.get("source_type"),
+                    "page_number": p_num,
+                    "chunk_index": c_idx,
+                    "citation": {
+                        "source_file": meta.get("source_file"),
+                        "source_type": meta.get("source_type"),
+                        "page_number": p_num,
+                        "chunk_index": c_idx,
+                        "start_char": None,
+                        "end_char": None,
+                    },
+                    "metadata": meta,
+                    "embedding_model": None
+                }
+                search_results.append(search_result)
+                
+                # Update chunks_store cache
+                self.chunks_store[chunk_id] = {
+                    "content": content,
+                    "source_file": meta.get("source_file"),
+                    "source_type": meta.get("source_type"),
+                    "page_number": p_num,
+                    "chunk_index": c_idx
+                }
             
             return search_results
             

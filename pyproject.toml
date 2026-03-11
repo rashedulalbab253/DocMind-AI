@@ -23,4 +23,5 @@ dependencies = [
     "yt-dlp>=2024.12.13",
     "zep-cloud>=3.4.3",
     "zep-crewai>=1.1.1",
+    "chromadb>=0.4.0",
 ]
