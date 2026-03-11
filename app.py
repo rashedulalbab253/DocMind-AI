@@ -411,21 +411,21 @@ def initialize_pipeline(force: bool = False):
         logger.info("Keys or model changed, forcing pipeline re-initialization")
     
     try:
-        # Check priority: 1. Sidebar input, 2. Env vars, 3. Streamlit Secrets
-        openai_key = st.session_state.get('user_openai_key') or os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
-        groq_key = st.session_state.get('user_groq_key') or os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
+        # Check priority: 1. Env vars, 2. Streamlit Secrets
+        openai_key = os.getenv("OPENAI_API_KEY") or (st.secrets.get("OPENAI_API_KEY") if hasattr(st, 'secrets') else None)
+        groq_key = os.getenv("GROQ_API_KEY") or (st.secrets.get("GROQ_API_KEY") if hasattr(st, 'secrets') else None)
         
-        assemblyai_key = os.getenv("ASSEMBLYAI_API_KEY") or st.secrets.get("ASSEMBLYAI_API_KEY")
-        firecrawl_key = os.getenv("FIRECRAWL_API_KEY") or st.secrets.get("FIRECRAWL_API_KEY")
-        zep_key = os.getenv("ZEP_API_KEY") or st.secrets.get("ZEP_API_KEY")
+        assemblyai_key = os.getenv("ASSEMBLYAI_API_KEY") or (st.secrets.get("ASSEMBLYAI_API_KEY") if hasattr(st, 'secrets') else None)
+        firecrawl_key = os.getenv("FIRECRAWL_API_KEY") or (st.secrets.get("FIRECRAWL_API_KEY") if hasattr(st, 'secrets') else None)
+        zep_key = os.getenv("ZEP_API_KEY") or (st.secrets.get("ZEP_API_KEY") if hasattr(st, 'secrets') else None)
         
         # Select LLM Provider
         llm_api_key = groq_key if groq_key else openai_key
         llm_model = "groq/llama-3.3-70b-versatile" if groq_key else "gpt-4o-mini"
         
         if not llm_api_key:
-            st.error("❌ No LLM API Key found.")
-            st.info("💡 **Tip:** You can enter your API key in the sidebar on the left to get started!")
+            st.error("❌ No LLM API Key found (OpenAI or Groq).")
+            st.warning("Please set your API keys as environment variables or in Streamlit Secrets.")
             return False
         
         col1, col2 = st.columns([3, 1])
@@ -675,28 +675,6 @@ def process_text(text_content):
 
 def render_sources_sidebar():
     with st.sidebar:
-        st.markdown('<div class="main-header">⚙️ Configuration</div>', unsafe_allow_html=True)
-        
-        # API Key Fallback UI
-        openai_key_env = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
-        groq_key_env = os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
-        
-        if not openai_key_env and not groq_key_env:
-            with st.expander("🔑 Add API Keys", expanded=True):
-                st.info("Enter your keys to enable AI features")
-                user_groq = st.text_input("Groq API Key", type="password", key="user_groq_key_input")
-                if user_groq:
-                    st.session_state.user_groq_key = user_groq
-                
-                user_openai = st.text_input("OpenAI API Key", type="password", key="user_openai_key_input")
-                if user_openai:
-                    st.session_state.user_openai_key = user_openai
-                    
-                if st.button("Save & Initialize", use_container_width=True):
-                    st.session_state.pipeline_initialized = False
-                    st.rerun()
-
-        st.markdown("---")
         st.markdown('<div class="main-header">📚 Sources</div>', unsafe_allow_html=True)
         
         # Pipeline status
