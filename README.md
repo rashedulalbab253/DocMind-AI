@@ -1,5 +1,5 @@
 # NotebookLM Clone
-In this project we build an open-source implementation of Google's NotebookLM that grounds AI responses in your documents with accurate citations. Built with modern AI technologies including RAG (Retrieval-Augmented Generation), vector databases, and conversational memory.
+This project by Rashedul Albab is an open-source implementation of Google's NotebookLM that grounds AI responses in your documents with accurate citations. Built with modern AI technologies including RAG (Retrieval-Augmented Generation), vector databases, and conversational memory.
 
 ## Overview
 
@@ -72,7 +72,7 @@ Outputs (Podcast, Answers, Citations)       │
 
 ## Installation & Setup
 
-**Prerequisites**: Python 3.11
+**Prerequisites**: Python 3.12.10
     
 1. **Install dependencies:**
     First, install `uv` and set up the environment:
@@ -92,9 +92,9 @@ Outputs (Podcast, Answers, Citations)       │
 
     # Create virtual environment and activate it
     uv venv
-    source .venv/bin/activate  # MacOS/Linux
+    source .venv_312/bin/activate  # MacOS/Linux
 
-    .venv\Scripts\activate     # Windows
+    .venv_312\Scripts\activate     # Windows
 
     # Install dependencies
     uv sync
